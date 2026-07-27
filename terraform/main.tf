@@ -109,3 +109,9 @@ resource "google_bigquery_dataset" "cafe_data_prod" {
   location    = "australia-southeast1"
   description = "Production dataset for dbt models - Grandma's café"
 }
+
+resource "google_project_iam_member" "dbt_bigquery_user" {
+  project = "grandma-cafe-analytics"
+  role    = "roles/bigquery.user"
+  member  = "serviceAccount:${google_service_account.dbt_cloud_sa.email}"
+}

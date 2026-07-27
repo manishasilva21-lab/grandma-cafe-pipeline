@@ -1,7 +1,0 @@
-version: 2
-
-sources:
-  - name: cafe_data
-    dataset: cafe_data
-    tables:
-      - name: sales_raw

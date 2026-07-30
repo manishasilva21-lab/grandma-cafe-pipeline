@@ -121,3 +121,14 @@ resource "google_storage_bucket_iam_member" "dbt_sa_storage_viewer" {
   role   = "roles/storage.objectViewer"
   member = "serviceAccount:${google_service_account.dbt_cloud_sa.email}"
 }
+
+resource "google_service_account" "github_actions_sa" {
+  account_id   = "github-actions-sa"
+  display_name = "GitHub Actions CI/CD Service Account"
+}
+
+resource "google_project_iam_member" "github_actions_editor" {
+  project = "grandma-cafe-analytics"
+  role    = "roles/editor"
+  member  = "serviceAccount:${google_service_account.github_actions_sa.email}"
+}

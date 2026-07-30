@@ -6,10 +6,10 @@ terraform {
         }
     }
 
-    backend "gcs" {
-        bucket = "grandma-cafe-analytics-tfstate"
-        prefix = "terraform/state"
-    }
+  backend "gcs" {
+  bucket = "grandma-cafe-analytics-tfstate-v2"
+  prefix = "terraform/state"
+}
 }
 
 locals {
@@ -131,4 +131,10 @@ resource "google_project_iam_member" "github_actions_editor" {
   project = "grandma-cafe-analytics"
   role    = "roles/editor"
   member  = "serviceAccount:${google_service_account.github_actions_sa.email}"
-}# retest
+}
+
+resource "google_storage_bucket_iam_member" "github_actions_tfstate_access" {
+  bucket = "grandma-cafe-analytics-tfstate-v2"
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.github_actions_sa.email}"
+}

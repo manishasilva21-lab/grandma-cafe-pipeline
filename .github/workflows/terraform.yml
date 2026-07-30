@@ -3,12 +3,12 @@ name: Terraform CI/CD
 on:
   pull_request:
     paths:
-      - 'terraform/**'
+      - 'Infra/terraform/**'
   push:
     branches:
       - main
     paths:
-      - 'terraform/**'
+      - 'Infra/terraform/**'
 
 jobs:
   plan:

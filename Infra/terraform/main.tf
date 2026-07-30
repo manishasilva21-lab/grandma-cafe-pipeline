@@ -115,3 +115,9 @@ resource "google_project_iam_member" "dbt_bigquery_user" {
   role    = "roles/bigquery.user"
   member  = "serviceAccount:${google_service_account.dbt_cloud_sa.email}"
 }
+
+resource "google_storage_bucket_iam_member" "dbt_sa_storage_viewer" {
+  bucket = google_storage_bucket.raw_data.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.dbt_cloud_sa.email}"
+}

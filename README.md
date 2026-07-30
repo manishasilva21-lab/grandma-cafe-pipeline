@@ -1,4 +1,4 @@
-# Grandma's Café — End-to-End GCP Data + DevOps Project
+# Grandma's Café - End-to-End GCP Data + DevOps Project
 
 **Repo:** `manishasilva21-lab/grandma-cafe-pipeline`
 **GCP Project:** `grandma-cafe-analytics`
@@ -20,7 +20,7 @@ Grandma's café makes the best banana bread in Fitzroy, but she's convinced busi
 - Muffins outsell croissants roughly 3:1
 
 **What the pipeline proved, independently, via BigQuery + dbt:**
-- Tuesday revenue: $25,157.50 vs ~$41-42k on other weekdays (~60% of normal — confirmed)
+- Tuesday revenue: $25,157.50 vs ~$41-42k on other weekdays (~60% of normal - confirmed)
 - Sunday/Saturday: highest revenue days (confirmed)
 - Muffin: $93,040 total revenue (top performer)
 - Croissant: $34,408 (bottom performer)
@@ -97,8 +97,8 @@ grandma-cafe-pipeline/
 │       └── marts/
 │           ├── sales_by_day.sql
 │           └── item_performance.sql
-├── dbt-cloud-key.json           (gitignored — service account key)
-├── github-actions-key.json      (gitignored — service account key)
+├── dbt-cloud-key.json           (gitignored - service account key)
+├── github-actions-key.json      (gitignored - service account key)
 └── README.md
 ```
 
@@ -106,50 +106,50 @@ grandma-cafe-pipeline/
 
 ## 5. Step-by-Step Build Log
 
-### Step 1 — Foundation
+### Step 1 - Foundation
 - Created GCP project `grandma-cafe-analytics`, enabled billing
 - Enabled APIs: BigQuery, Cloud Storage, Cloud Build, Cloud Functions, Cloud Scheduler
 - Created GitHub repo `grandma-cafe-pipeline`
 - **Retroactive fix:** all API enablement later moved into Terraform (`google_project_service` with `for_each`) so the project is fully reproducible from code, not console clicks
 
-### Step 2 — Terraform + Remote State
+### Step 2 - Terraform + Remote State
 - Wrote `main.tf`: provider block + `google_storage_bucket.raw_data`
-- Created a **separate state bucket** manually via `gsutil` (deliberately outside Terraform's own management — a bootstrap resource)
+- Created a **separate state bucket** manually via `gsutil` (deliberately outside Terraform's own management - a bootstrap resource)
 - Configured `backend "gcs"` pointing at the state bucket
 - Ran `terraform init` → `plan` → `apply`
-- **Bug hit:** state bucket was accidentally created under the wrong GCP project (old default project was active in local `gcloud` config at the time). Bucket *names* are globally unique in GCS but ownership is tied to whatever project is active when created — a name containing "grandma-cafe-analytics" does NOT guarantee it lives in that project.
+- **Bug hit:** state bucket was accidentally created under the wrong GCP project (old default project was active in local `gcloud` config at the time). Bucket *names* are globally unique in GCS but ownership is tied to whatever project is active when created - a name containing "grandma-cafe-analytics" does NOT guarantee it lives in that project.
   - **Fix:** created a new bucket (`-v2`) explicitly with `--project=grandma-cafe-analytics`, ran `terraform init -migrate-state` to move state over cleanly, verified via `terraform state list`, updated all downstream IAM bindings to point at the new bucket.
 
-### Step 3 — Synthetic Data Generation
+### Step 3 - Synthetic Data Generation
 - Python script (`generate_sales_data.py`) using `pandas` + `random`
 - Deliberately encoded ground-truth patterns (see Section 1) so the pipeline's later "discoveries" could be verified against known truth
 - Verified via `groupby('day_of_week')` and time-filtered `value_counts()` before trusting the data downstream
 
-### Step 4 — Load Raw Data to GCS
+### Step 4 - Load Raw Data to GCS
 - `gcloud storage cp sales_data.csv gs://grandma-cafe-analytics-raw-data/`
-- Verified upload integrity via byte-size comparison (local vs `Content-Length` in cloud) rather than trusting a checksum error caused by piping into `head` (a known false-positive — `head` closes the stream early, causing a partial-hash mismatch that looks like corruption but isn't)
+- Verified upload integrity via byte-size comparison (local vs `Content-Length` in cloud) rather than trusting a checksum error caused by piping into `head` (a known false-positive - `head` closes the stream early, causing a partial-hash mismatch that looks like corruption but isn't)
 
-### Step 5 — BigQuery External Table
+### Step 5 - BigQuery External Table
 - Created `cafe_data` dataset + `sales_raw` external table via Terraform, pointing at the GCS CSV (`autodetect = true`, `csv_options { skip_leading_rows = 1, quote = "" }`)
-- Verified via direct SQL query grouping by day_of_week — numbers matched the synthetic data's known patterns
+- Verified via direct SQL query grouping by day_of_week - numbers matched the synthetic data's known patterns
 
-### Step 6 — dbt Cloud
+### Step 6 - dbt Cloud
 - Set up dbt Cloud project, connected to BigQuery via a dedicated service account (`dbt-cloud-sa`)
 - Three datasets used for separation of concerns:
-  - `cafe_data` — raw, read-only source
-  - `cafe_data_dev` — dbt's dev output
-  - `cafe_data_prod` — dbt's scheduled/production output
+  - `cafe_data` - raw, read-only source
+  - `cafe_data_dev` - dbt's dev output
+  - `cafe_data_prod` - dbt's scheduled/production output
 - Built `stg_sales` (staging passthrough view) and two marts:
-  - `sales_by_day` — one row per day_of_week, total_revenue + transaction_count
-  - `item_performance` — one row per item, total_revenue_per_item
+  - `sales_by_day` - one row per day_of_week, total_revenue + transaction_count
+  - `item_performance` - one row per item, total_revenue_per_item
 - Also configured local dbt Cloud CLI in VS Code for local development against the same dbt Cloud project
 
-### Step 7 — Looker Studio Dashboard
+### Step 7 - Looker Studio Dashboard
 - Connected both marts as BigQuery data sources
 - Built two bar charts: revenue by day (sorted descending), revenue by item (sorted descending)
 - Confirmed visually: Tuesday is the clear underperformer, Muffin is the clear top seller
 
-### Step 8 — CI/CD (GitHub Actions)
+### Step 8 - CI/CD (GitHub Actions)
 - Two-job workflow: `plan` (runs on PR, read-only) → `apply` (runs on push to `main`, gated by manual approval via a GitHub `production` Environment with required reviewers)
 - Dedicated service account `github-actions-sa` with `roles/editor` at project level (documented trade-off: broader than strict least-privilege, acceptable for a solo project, would be scoped tighter in a team setting)
 - PR-based workflow: merged `work_branch_manisha` → `main` via a real pull request before wiring CI/CD to the default branch
@@ -158,7 +158,7 @@ grandma-cafe-pipeline/
 
 ## 6. Real Bugs Encountered (and why they matter)
 
-This project's actual value isn't "followed a tutorial" — it's the debugging. Every one of these was a genuine, independently-diagnosed issue:
+This project's actual value isn't "followed a tutorial" - it's the debugging. Every one of these was a genuine, independently-diagnosed issue:
 
 | Bug | Root Cause | Fix |
 |---|---|---|
@@ -169,11 +169,11 @@ This project's actual value isn't "followed a tutorial" — it's the debugging. 
 | dbt Cloud CLI vs dbt-core conflict | Local `venv` had a conflicting `dbt` binary shadowing the correct dbt Cloud CLI | Deactivated venv; understood the two tools share a command name but are incompatible |
 | YAML `SerializationError` in `dbt_project.yml` | Stray non-YAML text appended to the file | Rewrote with a complete, valid `dbt_project.yml` |
 | `dbt build` selection failing ("nothing to do") | Wrong `-s` syntax (full file path instead of model name) | Used `dbt build -s <model_name>` |
-| `sales_by_day` "table not found: raw_sales" | CTE naming mismatch — referenced a CTE name that didn't match its actual definition | Renamed consistently, always cross-checked before running |
+| `sales_by_day` "table not found: raw_sales" | CTE naming mismatch - referenced a CTE name that didn't match its actual definition | Renamed consistently, always cross-checked before running |
 | `sales_by_day` GCS permission denied | Views query live down to the raw external table; `dbt-cloud-sa` had BigQuery permissions but no GCS bucket read access | Added `roles/storage.objectViewer` scoped to the specific bucket |
-| GitHub Actions `terraform init` — wrong working directory | Actual folder was `Infra/terraform/`, workflow assumed `terraform/` | Updated both the trigger `paths:` filter and `working-directory:` in the workflow |
-| Workflow silently not triggering | GitHub Actions path filters do **not** make an exception for changes to the workflow file itself — a commit only touching `.github/workflows/*.yml` won't satisfy a `paths: - 'Infra/terraform/**'` filter | Included a real change under the watched path to trigger a test run |
-| GitHub Actions `terraform init` — Storage API 403 on state bucket | **Root cause:** the state bucket was created under an entirely different (old/personal) GCP project than `grandma-cafe-analytics`, due to `gsutil mb` using whatever project was locally active at creation time. `github-actions-sa` has zero access to that unrelated project, so no amount of IAM tweaking on the "right" project would ever fix it. | Migrated to a new, correctly-owned bucket via `terraform init -migrate-state`; verified via `terraform state list` |
+| GitHub Actions `terraform init` - wrong working directory | Actual folder was `Infra/terraform/`, workflow assumed `terraform/` | Updated both the trigger `paths:` filter and `working-directory:` in the workflow |
+| Workflow silently not triggering | GitHub Actions path filters do **not** make an exception for changes to the workflow file itself - a commit only touching `.github/workflows/*.yml` won't satisfy a `paths: - 'Infra/terraform/**'` filter | Included a real change under the watched path to trigger a test run |
+| GitHub Actions `terraform init` - Storage API 403 on state bucket | **Root cause:** the state bucket was created under an entirely different (old/personal) GCP project than `grandma-cafe-analytics`, due to `gsutil mb` using whatever project was locally active at creation time. `github-actions-sa` has zero access to that unrelated project, so no amount of IAM tweaking on the "right" project would ever fix it. | Migrated to a new, correctly-owned bucket via `terraform init -migrate-state`; verified via `terraform state list` |
 
 **The meta-lesson:** most of these bugs were "invisible" locally because a personal Google account tends to have broad access across many projects/resources, masking permission and ownership issues that only surface once a narrowly-scoped service account (dbt's, then GitHub Actions') tries the same operation. This is a genuinely important, realistic lesson about the difference between "it works on my machine" and "it works for the system that actually needs to run it unattended."
 
@@ -181,18 +181,18 @@ This project's actual value isn't "followed a tutorial" — it's the debugging. 
 
 ## 7. Key IAM Setup (Terraform-managed)
 
-**`dbt-cloud-sa`** — used by dbt Cloud to read/transform data:
-- `roles/bigquery.dataEditor` — write models
-- `roles/bigquery.jobUser` — run query jobs
-- `roles/bigquery.user` — required for BigQuery Storage Read API (readsessions)
-- `roles/storage.objectViewer` (bucket-scoped, `raw_data` bucket only) — read the raw CSV underlying the external table
+**`dbt-cloud-sa`** - used by dbt Cloud to read/transform data:
+- `roles/bigquery.dataEditor` - write models
+- `roles/bigquery.jobUser` - run query jobs
+- `roles/bigquery.user` - required for BigQuery Storage Read API (readsessions)
+- `roles/storage.objectViewer` (bucket-scoped, `raw_data` bucket only) - read the raw CSV underlying the external table
 
-**`github-actions-sa`** — used by CI/CD to manage infrastructure:
-- `roles/editor` (project-level) — broad, pragmatic choice for a solo project; would be scoped to a custom role in a team/production setting
-- `roles/storage.objectAdmin` (bucket-scoped, tfstate bucket only) — read/write Terraform state
+**`github-actions-sa`** - used by CI/CD to manage infrastructure:
+- `roles/editor` (project-level) - broad, pragmatic choice for a solo project; would be scoped to a custom role in a team/production setting
+- `roles/storage.objectAdmin` (bucket-scoped, tfstate bucket only) - read/write Terraform state
 
 **Secrets management:**
-- Service account keys (`dbt-cloud-key.json`, `github-actions-key.json`) generated manually via `gcloud iam service-accounts keys create` — deliberately *not* Terraform-managed, since key material shouldn't sit in `.tfstate` in plaintext
+- Service account keys (`dbt-cloud-key.json`, `github-actions-key.json`) generated manually via `gcloud iam service-accounts keys create` - deliberately *not* Terraform-managed, since key material shouldn't sit in `.tfstate` in plaintext
 - Both keys immediately gitignored
 - GitHub Actions key stored as repository secret `GCP_SA_KEY`
 
@@ -244,7 +244,7 @@ git reset --soft <commit>            # rewind branch pointer, keep changes stage
 
 ## 10. Talking Points for Interviews
 
-- "I built this end-to-end myself, including debugging a service account permission chain across BigQuery, GCS, and IAM — not just following a tutorial."
+- "I built this end-to-end myself, including debugging a service account permission chain across BigQuery, GCS, and IAM - not just following a tutorial."
 - "I deliberately used synthetic data with known statistical patterns so I could verify my pipeline was correct at every stage, not just that it produced *a* result."
-- "I hit a real production-realistic bug where my Terraform state bucket was silently living under the wrong GCP project — invisible with my personal credentials, but broke immediately for a narrowly-scoped CI/CD service account. I diagnosed and migrated it via `terraform init -migrate-state` without losing any state."
+- "I hit a real production-realistic bug where my Terraform state bucket was silently living under the wrong GCP project - invisible with my personal credentials, but broke immediately for a narrowly-scoped CI/CD service account. I diagnosed and migrated it via `terraform init -migrate-state` without losing any state."
 - "My CI/CD pipeline separates plan (automatic, safe) from apply (gated behind manual approval), which reflects how I'd actually want production infrastructure changes handled on a real team."

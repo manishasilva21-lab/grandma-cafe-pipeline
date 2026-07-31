@@ -4,13 +4,19 @@ terraform {
             source = "hashicorp/google"
             version = "~>5.0"
         }
+        archive = {
+        source  = "hashicorp/archive"
+        version = "~> 2.4"
+        }
     }
 
   backend "gcs" {
   bucket = "grandma-cafe-analytics-tfstate-v2"
   prefix = "terraform/state"
 }
+
 }
+
 
 locals {
   enabled_apis = [
@@ -137,4 +143,57 @@ resource "google_storage_bucket_iam_member" "github_actions_tfstate_access" {
   bucket = "grandma-cafe-analytics-tfstate-v2"
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.github_actions_sa.email}"
+}
+
+resource "google_service_account" "daily_generator_sa" {
+  account_id   = "daily-generator-sa"
+  display_name = "Daily Sales Generator Cloud Function"
+}
+#only object creator coz it just have to create the new file
+resource "google_storage_bucket_iam_member" "generator_storage_write" {
+  bucket = google_storage_bucket.raw_data.name
+  role   = "roles/storage.objectCreator"
+  member = "serviceAccount:${google_service_account.daily_generator_sa.email}"
+}
+
+#cloud function
+resource "google_storage_bucket" "function_source" {
+  name     = "grandma-cafe-analytics-function-source"
+  location = "australia-southeast1"
+  uniform_bucket_level_access = true
+}
+
+data "archive_file" "function_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/../../cloud-function"
+  output_path = "${path.module}/function.zip"
+}
+
+resource "google_storage_bucket_object" "function_zip" {
+  name   = "function-${data.archive_file.function_zip.output_md5}.zip"
+  bucket = google_storage_bucket.function_source.name
+  source = data.archive_file.function_zip.output_path
+}
+
+resource "google_cloudfunctions2_function" "daily_generator" {
+  name     = "daily-sales-generator"
+  location = "australia-southeast1"
+
+  build_config {
+    runtime     = "python312"
+    entry_point = "generate_daily_sales"
+    source {
+      storage_source {
+        bucket = google_storage_bucket.function_source.name
+        object = google_storage_bucket_object.function_zip.name
+      }
+    }
+  }
+
+  service_config {
+    max_instance_count = 1
+    available_memory    = "256M"
+    timeout_seconds      = 60
+    service_account_email = google_service_account.daily_generator_sa.email
+  }
 }

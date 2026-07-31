@@ -231,3 +231,9 @@ resource "google_cloud_run_service_iam_member" "scheduler_invoker" {
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.daily_generator_sa.email}"
 }
+
+resource "google_project_iam_member" "github_actions_run_admin" {
+  project = "grandma-cafe-analytics"
+  role    = "roles/run.admin"
+  member  = "serviceAccount:${google_service_account.github_actions_sa.email}"
+}

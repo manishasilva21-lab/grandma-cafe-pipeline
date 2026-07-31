@@ -3,6 +3,10 @@ import random
 from datetime import datetime, timedelta
 from google.cloud import storage
 import functions_framework
+from zoneinfo import ZoneInfo
+
+
+
 
 menu = {
     "Coffee":       {"category": "Drink", "price": 4.5},
@@ -18,7 +22,8 @@ BUCKET_NAME = "grandma-cafe-analytics-raw-data"
 @functions_framework.http
 def generate_daily_sales(request):
     # "Yesterday" — the day that just fully completed
-    target_date = datetime.now() - timedelta(days=1)
+    melbourne_tz = ZoneInfo("Australia/Melbourne")
+    target_date = datetime.now(melbourne_tz) - timedelta(days=1)
     day_of_week = target_date.strftime("%A")
 
     rows = []

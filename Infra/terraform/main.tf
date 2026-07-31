@@ -183,7 +183,7 @@ resource "google_cloudfunctions2_function" "daily_generator" {
 
    depends_on = [
     google_project_service.apis
-  ]w
+  ]
 
   build_config {
     runtime     = "python312"

@@ -181,6 +181,10 @@ resource "google_cloudfunctions2_function" "daily_generator" {
   name     = "daily-sales-generator"
   location = "australia-southeast1"
 
+   depends_on = [
+    google_project_service.apis
+  ]w
+
   build_config {
     runtime     = "python312"
     entry_point = "generate_daily_sales"

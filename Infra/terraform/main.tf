@@ -203,3 +203,31 @@ resource "google_cloudfunctions2_function" "daily_generator" {
     service_account_email = google_service_account.daily_generator_sa.email
   }
 }
+
+#cloud scheduler
+resource "google_cloud_scheduler_job" "daily_sales_trigger" {
+  name      = "trigger-daily-sales-generator"
+  region    = "australia-southeast1"
+  schedule  = "0 5 * * *"
+  time_zone = "Australia/Melbourne"
+
+  http_target {
+    uri         = google_cloudfunctions2_function.daily_generator.service_config[0].uri
+    http_method = "POST"
+
+    oidc_token {
+      service_account_email = google_service_account.daily_generator_sa.email
+    }
+  }
+
+  depends_on = [
+    google_cloudfunctions2_function.daily_generator
+  ]
+}
+
+resource "google_cloud_run_service_iam_member" "scheduler_invoker" {
+  location = "australia-southeast1"
+  service  = google_cloudfunctions2_function.daily_generator.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.daily_generator_sa.email}"
+}

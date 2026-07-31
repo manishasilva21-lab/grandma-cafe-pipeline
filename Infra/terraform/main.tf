@@ -65,7 +65,7 @@ resource "google_bigquery_table" "sales_raw" {
     }
 
     source_uris = [
-      "gs://grandma-cafe-analytics-raw-data/sales_data.csv"
+    "gs://grandma-cafe-analytics-raw-data/sales_*.csv"
     ]
   }
 

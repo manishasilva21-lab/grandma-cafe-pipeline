@@ -1,4 +1,4 @@
-# Grandma's Café — End-to-End GCP Data + DevOps Project
+# Grandma's Café - End-to-End GCP Data + DevOps Project
 
 **Repo:** `manishasilva21-lab/grandma-cafe-pipeline`
 **GCP Project:** `grandma-cafe-analytics`

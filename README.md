@@ -185,39 +185,8 @@ Goal: make the pipeline feel "alive" — new transaction data appearing daily wi
 
 ---
 
-## 6. Real Bugs Encountered (and why they matter)
 
-This project's actual value isn't "followed a tutorial" — it's the debugging. Every one of these was a genuine, independently-diagnosed issue:
-
-| Bug | Root Cause | Fix |
-|---|---|---|
-| Empty GitHub repo despite "done" | Commands were never actually run, just assumed | Verified via direct repo fetch; ran real git commands |
-| `terraform apply` never run before backend migration | Sequence confusion (backend configured before first apply) | Clarified timeline; ran `plan`→`apply` in correct order |
-| dbt Cloud `AuthenticationFailed` / Storage API error | BigQuery **Storage Read API** requires `bigquery.readsessions.create`, not covered by `dataEditor`/`jobUser` alone | Added `roles/bigquery.user` to service account via Terraform |
-| Same error persisted after "fixing" region | Region was a red herring; real cause was the dataset (`cafe_data_dev`) not existing yet | Created datasets via Terraform before retrying |
-| dbt Cloud CLI vs dbt-core conflict | Local `venv` had a conflicting `dbt` binary shadowing the correct dbt Cloud CLI | Deactivated venv; understood the two tools share a command name but are incompatible |
-| YAML `SerializationError` in `dbt_project.yml` | Stray non-YAML text appended to the file | Rewrote with a complete, valid `dbt_project.yml` |
-| `dbt build` selection failing ("nothing to do") | Wrong `-s` syntax (full file path instead of model name) | Used `dbt build -s <model_name>` |
-| `sales_by_day` "table not found: raw_sales" | CTE naming mismatch — referenced a CTE name that didn't match its actual definition | Renamed consistently, always cross-checked before running |
-| `sales_by_day` GCS permission denied | Views query live down to the raw external table; `dbt-cloud-sa` had BigQuery permissions but no GCS bucket read access | Added `roles/storage.objectViewer` scoped to the specific bucket |
-| GitHub Actions `terraform init` — wrong working directory | Actual folder was `Infra/terraform/`, workflow assumed `terraform/` | Updated both the trigger `paths:` filter and `working-directory:` in the workflow |
-| Workflow silently not triggering | GitHub Actions path filters do **not** make an exception for changes to the workflow file itself — a commit only touching `.github/workflows/*.yml` won't satisfy a `paths: - 'Infra/terraform/**'` filter | Included a real change under the watched path to trigger a test run |
-| GitHub Actions `terraform init` — Storage API 403 on state bucket | **Root cause:** the state bucket was created under an entirely different (old/personal) GCP project than `grandma-cafe-analytics`, due to `gsutil mb` using whatever project was locally active at creation time. `github-actions-sa` has zero access to that unrelated project, so no amount of IAM tweaking on the "right" project would ever fix it. | Migrated to a new, correctly-owned bucket via `terraform init -migrate-state`; verified via `terraform state list` |
-| `gcloud` commands failing with "resource not found" against real resources | Local `gcloud` CLI's default project had been the old/wrong project (`cost-tracker-demo-manisha-h`) this entire session — same root cause as the tfstate bucket bug, discovered again independently | `gcloud config set project grandma-cafe-analytics` — set explicitly rather than relying on an assumed default |
-| Cloud Function deploy — `service account ... was not found` | Cloud Functions 2nd gen builds via Cloud Build/Cloud Run under the hood, which needs the **default Compute Engine service account** — never created because `compute.googleapis.com` had never been enabled (no VMs ever used in this project) | Added `compute.googleapis.com` (and `run.googleapis.com`, needed next) to the Terraform-managed API list |
-| Cloud Function deploy — "Cloud Run Admin API has not been used" | Classic race condition: API enablement and function creation ran in the same apply with no explicit ordering, so the API hadn't finished propagating before the function tried to use it | Added `depends_on = [google_project_service.apis]` on the function resource to force correct sequencing |
-| Cloud Function runtime — `403 storage.objects.delete` on upload | `daily-generator-sa` had `roles/storage.objectCreator`, which permits creating **new** objects but not overwriting existing ones. The target filename already existed from an earlier manual/backfill run for the same date | Manually deleted the colliding file for the one-off collision; left as an open design decision (broaden to `objectAdmin` vs. add explicit skip-if-exists logic) since it only recurs if the function runs twice for the same date |
-| Cloud Scheduler → Function: `403 the request was not authenticated` | IAM propagation delay — the `run.invoker` binding was created moments before the scheduled trigger fired | Waited, re-triggered manually; succeeded once permissions had propagated |
-| `github-actions-sa` — `run.services.setIamPolicy` denied | `roles/editor` deliberately excludes the ability to **set IAM policy** on resources, even ones it can otherwise fully manage — a real GCP security boundary preventing indirect privilege escalation | Attempted fix (grant `roles/run.admin` to the SA via Terraform, using the SA itself) also failed for the identical reason one level up |
-| `github-actions-sa` — `Policy update access denied` on granting itself `roles/run.admin` | **Structural boundary, not a bug:** a service account can never grant itself (or anyone) more IAM authority than it already has — Terraform running *as* `github-actions-sa` cannot escalate its own privileges, by design | Granted the role manually via personal (Owner-level) credentials, then used `terraform import` to bring the binding under state tracking without ever letting the pipeline attempt to create it |
-| Daily generator producing the wrong date | Function computed "yesterday" using `datetime.now()`, which runs in **UTC** on Google's servers — not Melbourne time, where the café (and the Scheduler's cron) actually operates. A job firing at 5am Melbourne time is still the previous UTC day, silently shifting every calculation off by one | Used `datetime.now(ZoneInfo("Australia/Melbourne"))` explicitly — never trust server-local time for business-date logic |
-| `function.zip` and `.terraform.lock.hcl` — which to commit? | Easy to lump both together as "build junk" | `.terraform.lock.hcl` **should** be committed (pins provider versions, prevents drift between local/CI); `function.zip` should **not** (auto-regenerated by `archive_file` on every apply, pure build output) |
-
-**The meta-lesson:** most of these bugs were "invisible" locally because a personal Google account tends to have broad access across many projects/resources, masking permission and ownership issues that only surface once a narrowly-scoped service account (dbt's, then GitHub Actions') tries the same operation. This is a genuinely important, realistic lesson about the difference between "it works on my machine" and "it works for the system that actually needs to run it unattended."
-
----
-
-## 7. Key IAM Setup (Terraform-managed)
+## 6. Key IAM Setup (Terraform-managed)
 
 **`dbt-cloud-sa`** — used by dbt Cloud to read/transform data:
 - `roles/bigquery.dataEditor` — write models
@@ -241,7 +210,7 @@ This project's actual value isn't "followed a tutorial" — it's the debugging. 
 
 ---
 
-## 8. Useful Commands Reference
+## 7. Useful Commands Reference
 
 ```bash
 # Terraform
@@ -282,7 +251,7 @@ gcloud scheduler jobs run <name> --location=<region>       # manually fire a sch
 
 ---
 
-## 9. What's Left / Next Steps
+## 8. What's Left / Next Steps
 
 - [x] ~~Confirm GitHub Actions `apply` job correctly pauses at the `production` environment approval gate~~ — confirmed working
 - [x] ~~Add a scheduled dbt Cloud job so marts rebuild automatically~~ — daily dbt Cloud job live, verified writing to `cafe_data_prod`
@@ -293,14 +262,3 @@ gcloud scheduler jobs run <name> --location=<region>       # manually fire a sch
 - [ ] Polish Looker Studio dashboard: title, one-line insight callout, consistent snake_case column naming throughout
 - [ ] Consider adding dbt tests (`not_null`, `accepted_values`) to the marts for a data-quality story
 
----
-
-## 10. Talking Points for Interviews
-
-- "I built this end-to-end myself, including debugging a service account permission chain across BigQuery, GCS, and IAM — not just following a tutorial."
-- "I deliberately used synthetic data with known statistical patterns so I could verify my pipeline was correct at every stage, not just that it produced *a* result."
-- "I hit a real production-realistic bug where my Terraform state bucket was silently living under the wrong GCP project — invisible with my personal credentials, but broke immediately for a narrowly-scoped CI/CD service account. I diagnosed and migrated it via `terraform init -migrate-state` without losing any state."
-- "My CI/CD pipeline separates plan (automatic, safe) from apply (gated behind manual approval), which reflects how I'd actually want production infrastructure changes handled on a real team."
-- "I hit GCP's built-in protection against privilege self-escalation firsthand — my CI/CD service account couldn't grant itself a new IAM role, by design. I resolved it correctly: a human with real Owner-level access granted it once, and I brought that single binding under Terraform's tracking with `terraform import`, rather than trying to force the automation to do something it structurally shouldn't be able to do."
-- "I found and fixed a genuine timezone bug in my daily automation — a Cloud Function computing 'yesterday' using server-side UTC time instead of the business's actual timezone (Melbourne), which would have silently generated data for the wrong date, forever, if I hadn't caught it by checking actual output rather than trusting a success message."
-- "I designed the daily ingestion to land as one dated file per day, matching how a real point-of-sale system exports data, and updated my BigQuery external table to a wildcard source pattern so new files are picked up automatically with zero schema or pipeline changes needed."

@@ -11,7 +11,7 @@ synthetic data generation → cloud storage → data warehouse → transformatio
 
 ## 1. The Story / Business Problem
 
-Grandma's café makes the best banana bread in Fitzroy, but she's convinced business is "just quiet lately." Meanwhile her sales data is quietly screaming the real story. This project builds a pipeline to prove (or disprove) that with real data.
+Brownstone café makes the best banana bread in Fitzroy, but she's convinced business is "just quiet lately." Meanwhile her sales data is quietly screaming the real story. This project builds a pipeline to prove (or disprove) that with real data.
 
 **Ground truth baked into the synthetic data (the "answer key"):**
 - Tuesdays run ~40% below normal transaction volume

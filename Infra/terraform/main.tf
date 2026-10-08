@@ -237,4 +237,20 @@ resource "google_project_iam_member" "github_actions_run_admin" {
   role    = "roles/run.admin"
   member  = "serviceAccount:${google_service_account.github_actions_sa.email}"
 }
-#this is a comment
+
+   resource "google_bigquery_table" "transactions_raw" {
+     dataset_id          = google_bigquery_dataset.cafe_data.dataset_id  # match your dataset resource name
+     table_id            = "transactions_raw"
+     deletion_protection = false
+
+     external_data_configuration {
+       source_format = "CSV"
+       autodetect    = true
+       source_uris   = ["gs://grandma-cafe-analytics-raw-data/transactions/*.csv"]
+
+       csv_options {
+         quote             = "\""
+         skip_leading_rows = 1
+       }
+     }
+   }
